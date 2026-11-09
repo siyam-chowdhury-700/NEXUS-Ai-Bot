@@ -1,6 +1,6 @@
 app.secret_key = "nexus-secret-key-123"
 PASSWORD = "sIYAm@1916"
-GEMINI_API_KEY = AQ.Ab8RN6LpmN8Ps7Z657a3NF4oO0kpGncTs7SmWymZoO6ANAkUQQfrom flask import Flask, request, render_template_string, session, redirect
+GEMINI_API_KEY = AQ.Ab8RN6LpmN8Ps7Z657a3NF4o00kpGncTs7SmWymZo06ANAKuQQfrom flask import Flask, request, render_template_string, session, redirect
 from datetime import datetime, timedelta, timezone
 import re, requests
 

@@ -2,7 +2,7 @@ import os
 from flask import Flask
 
 # ১. রেন্ডার বা লোকাল এনভায়রনমেন্ট থেকে নিরাপদে Gemini API Key রিড করার লাইন
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+SIYAM = os.environ.get('SIYAM')
 
 app = Flask(__name__)
 

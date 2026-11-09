@@ -1,13 +1,12 @@
 app.secret_key = "nexus-secret-key-123"
 PASSWORD = "sIYAm@1916"
-GEMINI_API_KEY = AQ.Ab8RN6LpmN8Ps7Z657a3NF4o00kpGncTs7SmWymZo06ANAKuQQfrom flask import Flask, request, render_template_string, session, redirect
+from flask import Flask, request, render_template_string, session, redirect
 from datetime import datetime, timedelta, timezone
 import re, requests
 
 app = Flask(__name__)
 app.secret_key = "nexus-secret-key-123"
 PASSWORD = "sIYAm@1916"
-GEMINI_API_KEY = ""
 
 def ask_nexus(user_msg):
     if not GEMINI_API_KEY or GEMINI_API_KEY == "":

@@ -1,3 +1,18 @@
+import os
+from flask import Flask
+
+# ১. রেন্ডার বা লোকাল এনভায়রনমেন্ট থেকে নিরাপদে Gemini API Key রিড করার লাইন
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    # আপনার অ্যাপের রুট পেজ বা কাজের অংশ
+    return "NEXUS-Ai-Bot is running successfully!"
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
 from flask import Flask
 
 app = Flask(__GEMINI_API_KEY__)

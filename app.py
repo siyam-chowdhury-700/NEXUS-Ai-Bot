@@ -15,7 +15,6 @@ if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
 from flask import Flask
 
-app = Flask(__GEMINI_API_KEY__)
 app.secret_key = "nexus-secret-key-123"
 PASSWORD = "sIYAm@1916"
 from flask import Flask, request, render_template_string, session, redirect

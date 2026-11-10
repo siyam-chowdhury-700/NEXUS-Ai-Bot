@@ -783,4 +783,4 @@ def handle_message(question, image_file=None):
         answer, close = "ইনশাআল্লাহ যাবো।", False
 
     elif "jaba" in normalized:
-        answer, close = "ইনশাআল্লহ
+        answer, close = "ইনশাআল্লহ" 

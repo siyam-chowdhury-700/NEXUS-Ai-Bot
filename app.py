@@ -777,19 +777,32 @@ def handle_message(question, image_file=None):
         )
 
     elif "kemon" in normalized:
-        answer, close = "আলহামদুলিল্লাহ ভালো আছি। তুমি কেমন আছো?", False
+        answer, close = "আলহামদুলি। তুমি কেমন আছো?", False
 
-    elif "kalke" in normalized and "jaba" in normalized:
+    elif "kalke" in normkalke" in normalized and "jaba" in normalized:
         answer, close = "ইনশাআল্লাহ যাবো।", False
 
     elif "jaba" in normalized:
         answer, close = "ইনশাআল্লহ" 
+
 @app.route('/')
 def home():
+    if not session.get('logged_in'):
+        return render_template_string(LOGIN_HTML) # অথবা আপনার লগইন পেজের টেমপ্লেট
     return render_template_string(HTML)
+
+@app.route('/login', methods=['POST'])
+def login():
+    password = request.form.get('password')
+    if password == PASSWORD:
+        session['logged_in'] = True
+        return redirect('/')
+    return render_template_string(LOGIN_HTML, error='ভুল পাসওয়ার্ড')
 
 @app.route('/ask', methods=['POST'])
 def ask():
+    if not session.get('logged_in'):
+        return redirect('/login')
     user_message = request.form.get('q', '')
     image_file = request.files.get('image')
     answer, ending_soon = ask_nexus(user_message, image_file)

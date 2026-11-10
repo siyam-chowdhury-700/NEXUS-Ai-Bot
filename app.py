@@ -739,7 +739,7 @@ def handle_message(question, image_file=None):
         "tumi ke",
         "tomar nam",
         "porichoy",
-        "who are you?",
+        "who are you",
         "tomar malik",
         "tomake ke",
         "ke bana",
@@ -783,7 +783,7 @@ def handle_message(question, image_file=None):
         answer, close = "ইনশাআল্লাহ যাবো।", False
 
     elif "jaba" in normalized:
-        answer, close = "ইনশাআল্লহ" 
+        answer, close = "ইনশাআল্লহ", False
 
 @app.route('/')
 def home():

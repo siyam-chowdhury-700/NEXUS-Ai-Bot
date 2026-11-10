@@ -778,7 +778,7 @@ def handle_message(question, image_file=None):
 
 elif"kalke" in normalized and "jaba" in normalized: answer, close = "আলহামদুলি। তুমি কেমন আছো?", False
 
-    elif "kalke" in normkalke" in normalized and "jaba" in normalized:
+    elif "kalke" in normkalke in normalized and "jaba" in normalized:
         answer, close = "ইনশাআল্লাহ যাবো।", False
 
     elif "jaba" in normalized:

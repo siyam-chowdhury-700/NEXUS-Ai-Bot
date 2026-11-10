@@ -784,3 +784,16 @@ def handle_message(question, image_file=None):
 
     elif "jaba" in normalized:
         answer, close = "ইনশাআল্লহ" 
+@app.route('/')
+def home():
+    return render_template_string(HTML)
+
+@app.route('/ask', methods=['POST'])
+def ask():
+    user_message = request.form.get('q', '')
+    image_file = request.files.get('image')
+    answer, ending_soon = ask_nexus(user_message, image_file)
+    return render_template_string(HTML, q=user_message, answer=answer)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)))

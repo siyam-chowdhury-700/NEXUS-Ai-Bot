@@ -739,7 +739,7 @@ def handle_message(question, image_file=None):
         "tumi ke",
         "tomar nam",
         "porichoy",
-        "who are you",
+        "who are you?",
         "tomar malik",
         "tomake ke",
         "ke bana",

@@ -709,4 +709,4 @@ def clear_login_failures(ip_address):
 
 
 def get_visible_messages():
-    chat_id = session.get("chat_i
+    chat_id = session.get("chat_id")

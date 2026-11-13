@@ -685,7 +685,7 @@ def login_is_limited(ip_address):
             wait_seconds = int(
                 LOGIN_WINDOW_SECONDS - (now - attempts[0])
             )
-            return True, max(wait_seconds, 1)
+            return True, max(wait_seconds)
 
     return False, 0
 

@@ -1,7 +1,7 @@
-
 import os
 import re
 import time
+import hmac
 import sqlite3
 import secrets
 import threading
@@ -9,7 +9,7 @@ import logging
 from contextlib import closing
 from datetime import datetime, timedelta, timezone
 
-from flask import Flask, request, render_template_string, session, redirect
+from flask import Flask, request, render_template_string, session, redirect, url_for
 from werkzeug.middleware.proxy_fix import ProxyFix
 from google import genai
 from google.genai import types
@@ -293,14 +293,13 @@ def get_chat_entry():
                     config=types.GenerateContentConfig(
                         system_instruction=SYSTEM_INSTRUCTION,
                         temperature=0.7,
-                        # Bengali uses many tokens, and thinking models also
-                        # spend output tokens, so 1000 was too small.
                         max_output_tokens=4096,
                     ),
                     history=[],
                 ),
                 "lock": threading.Lock(),
                 "last_used": now,
+                "messages": [],
             }
             chat_sessions[chat_id] = entry
 
@@ -394,25 +393,9 @@ NORMALIZATION_MAP = {
     "ঘুম": "ghum",
 }
 
-
-SPELL_FIX = {
-    "insallah": "ইনশাআল্লাহ",
-    "inshallah": "ইনশাআল্লাহ",
-    "inshaallah": "ইনশাআল্লাহ",
-    "alhamdulilah": "আলহামদুলিল্লাহ",
-    "alhamdulila": "আলহামদুলিল্লাহ",
-    "masallah": "মাশাআল্লাহ",
-    "mashallah": "মাশাআল্লাহ",
-    "mashalla": "মাশাআল্লাহ",
-    "allah hafiz": "আল্লাহ হাফেজ",
-}
-
-# Word boundary that also understands Bengali letters.
 _B_BEFORE = r"(?<![\w\u0980-\u09FF])"
 _B_AFTER = r"(?![\w\u0980-\u09FF])"
 
-# Longest phrases first, whole-word matching only (no more corrupting
-# words like "base" -> "bkothay...").
 _NORMALIZE_RE = re.compile(
     _B_BEFORE
     + "("
@@ -448,6 +431,18 @@ def fix_spelling(text):
     return None, None
 
 
+SPELL_FIX = {
+    "insallah": "ইনশাআল্লাহ",
+    "inshallah": "ইনশাআল্লাহ",
+    "inshaallah": "ইনশাআল্লাহ",
+    "alhamdulilah": "আলহামদুলিল্লাহ",
+    "alhamdulila": "আলহামদুলিল্লাহ",
+    "masallah": "মাশাআল্লাহ",
+    "mashallah": "মাশাআল্লাহ",
+    "mashalla": "মাশাআল্লাহ",
+    "allah hafiz": "আল্লাহ হাফেজ",
+}
+
 KNOWN_WORDS = [
     "kemon", "korcho", "kothay", "khaicho",
     "khida", "jaba", "valo", "sundor",
@@ -465,13 +460,11 @@ KEYBOARD_MASH = {
 def is_gibberish(question, normalized):
     clean = (question or "").lower().strip()
 
-    # Bengali words (e.g. "বাংলাদেশ") often have no standalone vowel letters,
-    # so never judge Bengali text by the vowel rule.
+    # Bengali words often have no standalone vowel letters.
     if re.search(r"[\u0980-\u09FF]", clean):
         return False
 
-    # Only judge a single plain-letter word. Numbers, code, math and
-    # multi-word messages are never "gibberish".
+    # Only judge a single plain-letter word.
     if not re.fullmatch(r"[a-z]+", clean):
         return False
 
@@ -524,8 +517,6 @@ def is_quota_error(error):
 
 
 def is_daily_quota_error(error):
-    # A 429 can be a short per-minute limit. Only block the whole day when
-    # the error clearly talks about a daily quota.
     message = _error_text(error).replace("_", "").replace(" ", "")
     return "perday" in message or "daily" in message
 
@@ -608,14 +599,28 @@ def ask_nexus(user_message, image_file=None):
                 )
             )
 
-        # Per-chat lock: one slow request no longer blocks every user.
+        # Per-chat lock: one slow request does not block every user.
         with entry["lock"]:
             response = entry["chat"].send_message(parts)
 
-        try:
-            reply = response.text
-        except Exception:
-            reply = None
+            try:
+                reply = response.text
+            except Exception:
+                reply = None
+
+            if reply:
+                entry["messages"].append({
+                    "role": "user",
+                    "text": user_message or "ছবিটি দেখে আমাকে সাহায্য করো।",
+                    "has_image": image_bytes is not None,
+                })
+                entry["messages"].append({
+                    "role": "assistant",
+                    "text": reply,
+                    "has_image": False,
+                })
+                # Keep the in-memory display history bounded.
+                entry["messages"] = entry["messages"][-40:]
 
         if not reply:
             release_api_slot()
@@ -649,93 +654,59 @@ def ask_nexus(user_message, image_file=None):
 
 
 # ============================================================
-# 6. HTML INTERFACE
+# 6. LOGIN, CSRF AND WEB HELPERS
 # ============================================================
-HTML = """
-<!DOCTYPE html>
-<html lang="bn">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>NEXUS AI</title>
-<style>
-body{
-    background:#111;
-    color:white;
-    font-family:sans-serif;
-    display:flex;
-    justify-content:center;
-    padding-top:30px
-}
-.box{
-    background:#222;
-    padding:25px;
-    border-radius:20px;
-    width:92%;
-    max-width:420px;
-    text-align:center
-}
-input{
-    width:90%;
-    padding:12px;
-    border-radius:10px;
-    border:none;
-    margin:10px 0;
-    font-size:16px
-}
-button{
-    background:#00ff88;
-    border:none;
-    padding:12px 25px;
-    border-radius:12px;
-    font-size:16px;
-    font-weight:bold;
-    cursor:pointer
-}
-.linkbtn{
-    background:none;
-    color:#00ff88;
-    padding:8px;
-    font-size:15px;
-    text-decoration:underline;
-    font-weight:normal
-}
-.answer{
-    background:#333;
-    padding:15px;
-    border-radius:12px;
-    margin:15px 0;
-    text-align:left;
-    white-space:pre-wrap;
-    overflow-wrap:anywhere
-}
-</style>
-</head>
+def get_csrf_token():
+    token = session.get("csrf_token")
+    if not token:
+        token = secrets.token_urlsafe(32)
+        session["csrf_token"] = token
+    return token
 
-<body>
-<div class="box">
 
-{% if not logged %}
+def valid_csrf():
+    submitted = request.form.get("csrf", "")
+    expected = session.get("csrf_token", "")
+    return bool(submitted and expected and hmac.compare_digest(submitted, expected))
 
-<h2>🔒 NEXUS AI - Private</h2>
-<p>পাসওয়ার্ড দাও</p>
 
-<form method="post" action="/login">
-<input type="hidden" name="csrf" value="{{ csrf }}">
-<input
-    type="password"
-    name="password"
-    placeholder="পাসওয়ার্ড..."
-    required
->
-<br>
-<button type="submit">Unlock</button>
-</form>
+def login_is_limited(ip_address):
+    now = time.time()
 
-{% if error %}
-<p style="color:#ff5555;">{{ error }}</p>
-{% endif %}
+    with login_lock:
+        attempts = login_attempts.get(ip_address, [])
+        attempts = [
+            timestamp for timestamp in attempts
+            if now - timestamp < LOGIN_WINDOW_SECONDS
+        ]
+        login_attempts[ip_address] = attempts
 
-{% else %}
+        if len(attempts) >= MAX_LOGIN_ATTEMPTS:
+            wait_seconds = int(
+                LOGIN_WINDOW_SECONDS - (now - attempts[0])
+            )
+            return True, max(wait_seconds, 1)
 
-<h
+    return False, 0
+
+
+def record_login_failure(ip_address):
+    now = time.time()
+
+    with login_lock:
+        attempts = login_attempts.get(ip_address, [])
+        attempts = [
+            timestamp for timestamp in attempts
+            if now - timestamp < LOGIN_WINDOW_SECONDS
+        ]
+        attempts.append(now)
+        login_attempts[ip_address] = attempts
+
+
+def clear_login_failures(ip_address):
+    with login_lock:
+        login_attempts.pop(ip_address, None)
+
+
+def get_visible_messages():
+    chat_id = session.get("chat_i
